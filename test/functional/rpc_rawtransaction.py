@@ -34,6 +34,7 @@ from test_framework.util import (
     assert_equal,
     assert_greater_than,
     assert_raises_rpc_error,
+    sync_txindex,
 )
 from test_framework.wallet import (
     getnewdestination,
@@ -70,7 +71,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.num_nodes = 3
         self.extra_args = [
             ["-txindex"],
-            ["-txindex"],
+            [],
             ["-fastprune", "-prune=1"],
         ]
         # whitelist peers to speed up tx relay / mempool sync
@@ -109,6 +110,7 @@ class RawTransactionsTest(BitcoinTestFramework):
             self.log.info(f"Test getrawtransaction {'with' if n == 0 else 'without'} -txindex")
 
             if n == 0:
+                sync_txindex(self, self.nodes[n])
                 # With -txindex.
                 # 1. valid parameters - only supply txid
                 assert_equal(self.nodes[n].getrawtransaction(txId), tx['hex'])
@@ -430,13 +432,13 @@ class RawTransactionsTest(BitcoinTestFramework):
         assert_equal(testres['allowed'], True)
         self.nodes[2].sendrawtransaction(hexstring=tx['hex'], maxfeerate='0.20000000')
 
-        self.log.info("Test sendrawtransaction/testmempoolaccept with tx already in the chain")
+        self.log.info("Test sendrawtransaction/testmempoolaccept with tx outputs already in the utxo set")
         self.generate(self.nodes[2], 1)
         for node in self.nodes:
             testres = node.testmempoolaccept([tx['hex']])[0]
             assert_equal(testres['allowed'], False)
             assert_equal(testres['reject-reason'], 'txn-already-known')
-            assert_raises_rpc_error(-27, 'Transaction already in block chain', node.sendrawtransaction, tx['hex'])
+            assert_raises_rpc_error(-27, 'Transaction outputs already in utxo set', node.sendrawtransaction, tx['hex'])
 
     def decoderawtransaction_tests(self):
         self.log.info("Test decoderawtransaction")
@@ -612,4 +614,4 @@ class RawTransactionsTest(BitcoinTestFramework):
 
 
 if __name__ == '__main__':
-    RawTransactionsTest().main()
+    RawTransactionsTest(__file__).main()

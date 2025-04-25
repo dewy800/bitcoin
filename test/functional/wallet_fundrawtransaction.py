@@ -18,6 +18,7 @@ from test_framework.messages import (
 )
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
+    assert_not_equal,
     assert_approx,
     assert_equal,
     assert_fee_amount,
@@ -44,6 +45,9 @@ class RawTransactionsTest(BitcoinTestFramework):
 
     def set_test_params(self):
         self.num_nodes = 4
+        self.extra_args = [[
+            "-deprecatedrpc=settxfee"
+        ] for i in range(self.num_nodes)]
         self.setup_clean_chain = True
         # whitelist peers to speed up tx relay / mempool sync
         self.noban_tx_relay = True
@@ -657,7 +661,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         outputs = {self.nodes[0].getnewaddress():1.1}
         rawtx = wallet.createrawtransaction(inputs, outputs)
         fundedTx = wallet.fundrawtransaction(rawtx)
-        assert fundedTx["changepos"] != -1
+        assert_not_equal(fundedTx["changepos"], -1)
 
         # Now we need to unlock.
         with WalletUnlock(wallet, "test"):
@@ -900,10 +904,10 @@ class RawTransactionsTest(BitcoinTestFramework):
         for out in res_dec['vout']:
             if out['value'] > 1.0:
                 changeaddress += out['scriptPubKey']['address']
-        assert changeaddress != ""
+        assert_not_equal(changeaddress, "")
         nextaddr = self.nodes[3].getnewaddress()
         # Now the change address key should be removed from the keypool.
-        assert changeaddress != nextaddr
+        assert_not_equal(changeaddress, nextaddr)
 
     def test_option_subtract_fee_from_outputs(self):
         self.log.info("Test fundrawtxn subtractFeeFromOutputs option")
@@ -1322,15 +1326,15 @@ class RawTransactionsTest(BitcoinTestFramework):
         outputs = []
         for _ in range(1472):
             outputs.append({wallet.getnewaddress(address_type="legacy"): 0.1})
-        txid = self.nodes[0].send(outputs=outputs)["txid"]
+        txid = self.nodes[0].send(outputs=outputs, change_position=0)["txid"]
         self.generate(self.nodes[0], 1)
 
         # 272 WU per input (273 when high-s); picking 1471 inputs will exceed the max standard tx weight.
         rawtx = wallet.createrawtransaction([], [{wallet.getnewaddress(): 0.1 * 1471}])
 
-        # 1) Try to fund transaction only using the preset inputs
+        # 1) Try to fund transaction only using the preset inputs (pick all 1472 inputs to cover the fee)
         input_weights = []
-        for i in range(1471):
+        for i in range(1, 1473):  # skip first output as it is the parent tx change output
             input_weights.append({"txid": txid, "vout": i, "weight": 273})
         assert_raises_rpc_error(-4, "Transaction too large", wallet.fundrawtransaction, hexstring=rawtx, input_weights=input_weights)
 
@@ -1523,4 +1527,4 @@ class RawTransactionsTest(BitcoinTestFramework):
         wallet.unloadwallet()
 
 if __name__ == '__main__':
-    RawTransactionsTest().main()
+    RawTransactionsTest(__file__).main()

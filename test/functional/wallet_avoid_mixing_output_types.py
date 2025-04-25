@@ -117,7 +117,6 @@ class AddressInputTypeGrouping(BitcoinTestFramework):
         self.extra_args = [
             [
                 "-addresstype=bech32",
-                "-txindex",
             ],
             [
                 "-addresstype=p2sh-segwit",
@@ -127,7 +126,6 @@ class AddressInputTypeGrouping(BitcoinTestFramework):
 
     def skip_test_if_missing_module(self):
         self.skip_if_no_wallet()
-        self.skip_if_no_sqlite()
 
     def make_payment(self, A, B, v, addr_type):
         fee_rate = random.randint(1, 20)
@@ -177,4 +175,4 @@ class AddressInputTypeGrouping(BitcoinTestFramework):
 
 
 if __name__ == '__main__':
-    AddressInputTypeGrouping().main()
+    AddressInputTypeGrouping(__file__).main()

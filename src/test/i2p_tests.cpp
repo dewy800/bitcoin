@@ -23,8 +23,8 @@ class EnvTestingSetup : public BasicTestingSetup
 {
 public:
     explicit EnvTestingSetup(const ChainType chainType = ChainType::MAIN,
-                             const std::vector<const char*>& extra_args = {})
-        : BasicTestingSetup{chainType, extra_args},
+                             TestOpts opts = {})
+        : BasicTestingSetup{chainType, opts},
           m_prev_log_level{LogInstance().LogLevel()},
           m_create_sock_orig{CreateSock}
     {
@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(unlimited_recv)
 
     CThreadInterrupt interrupt;
     const std::optional<CService> addr{Lookup("127.0.0.1", 9000, false)};
-    const Proxy sam_proxy(addr.value(), false);
+    const Proxy sam_proxy(addr.value(), /*tor_stream_isolation=*/false);
     i2p::sam::Session session(gArgs.GetDataDirNet() / "test_i2p_private_key", sam_proxy, &interrupt);
 
     {
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(listen_ok_accept_fail)
 
     CThreadInterrupt interrupt;
     const CService addr{in6_addr(IN6ADDR_LOOPBACK_INIT), /*port=*/7656};
-    const Proxy sam_proxy(addr, false);
+    const Proxy sam_proxy(addr, /*tor_stream_isolation=*/false);
     i2p::sam::Session session(gArgs.GetDataDirNet() / "test_i2p_private_key",
                               sam_proxy,
                               &interrupt);
@@ -157,7 +157,7 @@ BOOST_AUTO_TEST_CASE(damaged_private_key)
 
         CThreadInterrupt interrupt;
         const CService addr{in6_addr(IN6ADDR_LOOPBACK_INIT), /*port=*/7656};
-        const Proxy sam_proxy{addr, false};
+        const Proxy sam_proxy{addr, /*tor_stream_isolation=*/false};
         i2p::sam::Session session(i2p_private_key_file, sam_proxy, &interrupt);
 
         {

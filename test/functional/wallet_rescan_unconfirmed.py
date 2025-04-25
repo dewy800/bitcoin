@@ -24,7 +24,6 @@ class WalletRescanUnconfirmed(BitcoinTestFramework):
 
     def skip_test_if_missing_module(self):
         self.skip_if_no_wallet()
-        self.skip_if_no_sqlite()
 
     def run_test(self):
         self.log.info("Create wallets and mine initial chain")
@@ -80,4 +79,4 @@ class WalletRescanUnconfirmed(BitcoinTestFramework):
         assert_equal(w1.gettransaction(tx_child_unconfirmed_sweep["txid"])["confirmations"], 0)
 
 if __name__ == '__main__':
-    WalletRescanUnconfirmed().main()
+    WalletRescanUnconfirmed(__file__).main()
