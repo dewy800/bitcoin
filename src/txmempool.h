@@ -49,14 +49,13 @@ struct bilingual_str;
 /** Fake height value used in Coin to signify they are only in the memory pool (since 0.8) */
 static const uint32_t MEMPOOL_HEIGHT = 0x7FFFFFFF;
 
-/** How many linearization iterations required for TxGraph clusters to have
- * "acceptable" quality, if they cannot be optimally linearized with fewer
- * iterations. */
-static constexpr uint64_t ACCEPTABLE_ITERS = 1'700;
+/** How much linearization cost required for TxGraph clusters to have
+ * "acceptable" quality, if they cannot be optimally linearized with less cost. */
+static constexpr uint64_t ACCEPTABLE_COST = 75'000;
 
 /** How much work we ask TxGraph to do after a mempool change occurs (either
  * due to a changeset being applied, a new block being found, or a reorg). */
-static constexpr uint64_t POST_CHANGE_WORK = 5 * ACCEPTABLE_ITERS;
+static constexpr uint64_t POST_CHANGE_COST = 5 * ACCEPTABLE_COST;
 
 /**
  * Test whether the LockPoints height and time are still valid on the current chain
@@ -212,7 +211,9 @@ public:
 
     static const int ROLLING_FEE_HALFLIFE = 60 * 60 * 12; // public only for testing
 
-    struct CTxMemPoolEntry_Indices final : boost::multi_index::indexed_by<
+    using indexed_transaction_set = boost::multi_index_container<
+        CTxMemPoolEntry,
+        boost::multi_index::indexed_by<
             // sorted by txid
             boost::multi_index::hashed_unique<mempoolentry_txid, SaltedTxidHasher>,
             // sorted by wtxid
@@ -228,11 +229,7 @@ public:
                 CompareTxMemPoolEntryByEntryTime
             >
         >
-        {};
-    typedef boost::multi_index_container<
-        CTxMemPoolEntry,
-        CTxMemPoolEntry_Indices
-    > indexed_transaction_set;
+    >;
 
     /**
      * This mutex needs to be locked when accessing `mapTx` or other members
@@ -258,7 +255,7 @@ public:
      * changing the chain tip. It's necessary to keep both mutexes locked until
      * the mempool is consistent with the new chain tip and fully populated.
      */
-    mutable RecursiveMutex cs;
+    mutable RecursiveMutex cs ACQUIRED_AFTER(::cs_main);
     std::unique_ptr<TxGraph> m_txgraph GUARDED_BY(cs);
     mutable std::unique_ptr<TxGraph::BlockBuilder> m_builder GUARDED_BY(cs);
     indexed_transaction_set mapTx GUARDED_BY(cs);
@@ -769,7 +766,7 @@ protected:
 public:
     CCoinsViewMemPool(CCoinsView* baseIn, const CTxMemPool& mempoolIn);
     /** GetCoin, returning whether it exists and is not spent. Also updates m_non_base_coins if the
-     * coin is not fetched from base. */
+     * coin is not fetched from base. May populate the base view on cache misses. */
     std::optional<Coin> GetCoin(const COutPoint& outpoint) const override;
     /** Add the coins created by this transaction. These coins are only temporarily stored in
      * m_temp_added and cannot be flushed to the back end. Only used for package validation. */
